@@ -3,7 +3,7 @@
 # **Analysis**
 
 #### The code appears to be broken up into 3 sections:
-    1. <p>Variable declarations (Lines 1 - 35) -Stands alone and does not call any methods. <p>
+    1. Variable declarations (Lines 1 - 35) -Stands alone and does not call any methods.
 
     2. Setup procedures (Lines 38 - 161) - 
        The parent method is to setup and is linked to the setup button on the GUI.
