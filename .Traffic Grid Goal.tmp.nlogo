@@ -1,7 +1,6 @@
 ;; import the python extension
 extensions [py]
 breed [ cars car ]
-breed [ ambulances ambulance ]
 breed [ trucks truck ]
 
 globals
@@ -24,13 +23,14 @@ globals
 
 turtles-own
 [
-  speed     ;; the speed of the turtle
-  up-car?   ;; true if the turtle moves downwards and false if it moves to the right
-  wait-time ;; the amount of time since the last time a turtle has moved
-  work      ;; the patch where they work
-  house     ;; the patch where they live
-  goal      ;; where am I currently headed
+  speed      ;; the speed of the turtle
+  up-car?    ;; true if the turtle moves downwards and false if it moves to the right
+  wait-time  ;; the amount of time since the last time a turtle has moved
+  work       ;; the patch where they work
+  house      ;; the patch where they live
+  goal       ;; where am I currently headed
   last-patch ;; the patch turtle was on at last tick
+  stay-timer  ;; the amount of time a turtle stars somewhere
 ]
 
 trucks-own
@@ -222,6 +222,7 @@ to setup-cars  ;; turtle procedure
     [ set heading 90 ]
 end
 
+;;boiler plate code
 to setup-trucks
   set speed 0
   set wait-time 0
@@ -284,21 +285,26 @@ to go
   set-signals
   set num-cars-stopped 0
 
+  ;;wear down the roads based on vehicle movement
   wear-down
   ;; set the cars’ speed, move them forward their speed, record data for plotting,
   ;; and set the color of the cars to an appropriate color based on their speed
   ask cars [
-    face next-patch ;; car heads towards its goal
+
+    face car-next-patch ;; car heads towards its goal
     set-car-speed
     fd speed
     record-data     ;; record data for plotting
     set-car-color   ;; set color to indicate speed
+
   ]
   ask trucks [
-    face next-patch ;; ca heads towards its goal
+
+    face truck-next-patch ;; truck heads towards its goal
     set-car-speed
     fd speed
     record-data     ;; record data for plotting
+
   ]
   show-wear ;;update visual appearance of the roads based on their wear
   label-subject ;; if we're watching a car, have it display its goal
@@ -388,6 +394,13 @@ to set-car-speed  ;; turtle procedure
       [ set-speed 0 -1 ]
       [ set-speed 1 0 ]
   ]
+  ;;decrease speed when moving over worn patches
+  if pcolor = gray and speed > 0.[
+    set speed speed - 0.2
+  ]
+  if pcolor = black and speed > 0.4[
+    set speed speed - 0.4
+  ]
 end
 
 ;; set the speed variable of the turtle to an appropriate value (not exceeding the
@@ -455,8 +468,9 @@ to next-phase
   if phase mod ticks-per-cycle = 0 [ set phase 0 ]
 end
 
-;; establish goal of driver (house or work) and move to next patch along the way
-to-report next-patch
+;;car procedure
+;;establish goal of driver (house or work) and move to next patch along the way
+to-report car-next-patch
   ;; if I am going home and I am next to the patch that is my home
   ;; my goal gets set to the patch that is my work
   if goal = house and (member? patch-here [ neighbors4 ] of house) [
@@ -474,6 +488,28 @@ to-report next-patch
   ;; choose the patch closest to the goal, this is the patch the car will move to
   let choice min-one-of choices [ distance [ goal ] of myself ]
   ;; report the chosen patch
+  report choice
+end
+
+;;truck procedure
+to-report truck-next-patch
+
+  ;;boilerplate code -- could be replaced in the future with new method for determing truck routes
+  if goal = house and (member? patch-here [ neighbors4 ] of house) [
+    set goal work
+  ]
+  ;; if I am going to work and I am next to the patch that is my work
+  ;; my goal gets set to the patch that is my home
+  if goal = work and (member? patch-here [ neighbors4 ] of work) [
+    set goal house
+  ]
+  ;; CHOICES is an agentset of the candidate patches that the car can
+  ;; move to (white patches are roads, green and red patches are lights)
+  ;; had to add gray and black here, perhaps there is a more elegant way to do this
+  let choices neighbors with [ pcolor = white or pcolor = red or pcolor = green or pcolor = gray or pcolor = black]
+  ;; choose the patch closest to the goal, this is the patch the car will move to
+  let choice min-one-of choices [ distance [ goal ] of myself ]
+
   report choice
 end
 
@@ -526,18 +562,25 @@ to label-subject
   ]
 end
 
+
 ;; a procedure in which cars wear down the road over time
 ;; this in turn might affect the top speed that the cars can reach on that section of road.
 to wear-down
-  ;;ask patches [
-
-    ;if count turtles-here > 0 [set wear wear + 1 ];; increase wear by 1 for each patch with a turtle on it
-  ;]
-  ask turtles [
+  ask cars [
     let current-patch patch-here
     if current-patch != last-patch [
       ask current-patch [
         set wear wear + 1
+      ]
+      set last-patch current-patch
+    ]
+  ]
+  ;;increase the wear caused by trucks
+  ask trucks [
+    let current-patch patch-here
+    if current-patch != last-patch [
+      ask current-patch [
+        set wear wear + 2
       ]
       set last-patch current-patch
     ]
@@ -550,6 +593,12 @@ to show-wear
     if wear > 100 and pcolor = white [ set pcolor gray ]
     if wear > 1000 and pcolor = gray [ set pcolor black ]
   ]
+
+end
+
+
+to stay
+  set stay-timer stay-timer - 1 ;; decrement timer
 
 end
 
@@ -656,7 +705,7 @@ SWITCH
 118
 power?
 power?
-0
+1
 1
 -1000
 
