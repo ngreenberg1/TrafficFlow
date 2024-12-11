@@ -295,7 +295,7 @@ to go
     set-car-color   ;; set color to indicate speed
   ]
   ask trucks [
-    face next-patch ;; truck heads towards its goal
+    face next-patch ;; ca heads towards its goal
     set-car-speed
     fd speed
     record-data     ;; record data for plotting
