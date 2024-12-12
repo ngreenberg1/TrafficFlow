@@ -602,7 +602,8 @@ to move-truck ;; turtle procedure
           ;; reset go-timer to avoid stopping
           ;; need to find a better way to avoid stopping in intersections so that trucks don't go for too long due to this logic
           [ set go-timer random 50 ]
-          [ set stop-timer random 50
+          [ set stop-timer random 100
+            stop
             set go-timer 0 ] ;;ensure go-timer resets
       ]
     ]
@@ -611,9 +612,9 @@ to move-truck ;; turtle procedure
        ;; decrement stop-timer
        set stop-timer stop-timer - 1
 
-       ;; resume movement if stop-timer ends
+       ;; when stop timer reaches 0, reset go-timer to random number up to 50 so that truck will transition back to moving state
        if stop-timer <= 0 [
-         set go-timer random 50
+         set go-timer random 100
          set stop-timer 0 ;; ensure stop-timer resets
        ]
     ]
@@ -972,7 +973,7 @@ num-trucks
 num-trucks
 0
 100
-13.0
+34.0
 1
 1
 NIL
