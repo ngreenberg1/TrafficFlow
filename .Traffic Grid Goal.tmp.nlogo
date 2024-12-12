@@ -296,9 +296,11 @@ to go
   ;; set the cars’ speed, move them forward their speed, record data for plotting,
   ;; and set the color of the cars to an appropriate color based on their speed
   ask cars [
+    let next-patch car-next-patch
 
-    while [car-next-patch = last-patch]
-    [ face car-next-patch ] ;; car heads towards its goal
+    while [next-patch = last-patch]
+    [ set next-patch car-next-patch ]
+    face next-patch ;; car heads towards its goal
     set-car-speed
     fd speed
     record-data     ;; record data for plotting
@@ -600,7 +602,8 @@ to move-truck ;; turtle procedure
           ;; reset go-timer to avoid stopping
           ;; need to find a better way to avoid stopping in intersections so that trucks don't go for too long due to this logic
           [ set go-timer random 50 ]
-          [ set stop-timer random 50
+          [ set stop-timer random 100
+
             set go-timer 0 ] ;;ensure go-timer resets
       ]
     ]
@@ -609,9 +612,9 @@ to move-truck ;; turtle procedure
        ;; decrement stop-timer
        set stop-timer stop-timer - 1
 
-       ;; resume movement if stop-timer ends
+       ;; when stop timer reaches 0, reset go-timer to random number up to 50 so that truck will transition back to moving state
        if stop-timer <= 0 [
-         set go-timer random 50
+         set go-timer random 100
          set stop-timer 0 ;; ensure stop-timer resets
        ]
     ]
@@ -970,7 +973,7 @@ num-trucks
 num-trucks
 0
 100
-0.0
+34.0
 1
 1
 NIL
