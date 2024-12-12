@@ -30,12 +30,12 @@ turtles-own
   house      ;; the patch where they live
   goal       ;; where am I currently headed
   last-patch ;; the patch turtle was on at last tick
-  stay-timer  ;; the amount of time a turtle stars somewhere
+  stay-timer  ;; the amount of time a turtle stays somewhere
 ]
 
 trucks-own
 [
-
+  stop-timer ;;timer for stopping trucks
 ]
 patches-own
 [
@@ -114,14 +114,6 @@ to setup
     set shape "truck"
     set size 2
     record-data
-    ;; choose at random a location for the house
-    set house one-of goal-candidates
-    ;; choose at random a location for work, make sure work is far enough from the house
-    set work one-of goal-candidates with [ self != [ house ] of myself
-      and distance [house] of myself > min-distance
-    ]
-    ;; set initial goal to work
-    set goal work
   ]
   ;; give the turtles an initial speed
   ask turtles [
@@ -140,8 +132,19 @@ to setup-globals
   set num-cars-stopped 0
   set grid-x-inc world-width / grid-size-x
   set grid-y-inc world-height / grid-size-y
-  ;;TODO fix this so that max_distance is set dynamically based on world size -- pythagorean theorem
-  set max-distance 21
+  ;;calculate the dimensions of the world
+  let width (max-pxcor - min-pxcor + 1)
+  let height (max-pycor - min-pycor + 1)
+
+  ;; calculate the distance, as the bird flies, from one corner of the world to opposite corner
+  ;; still not sure exactly how to calculate mathematically the subset of patches available
+  ;; for house and work as a function of world-size, min-distance, and num-cars.  Instead, found this
+  ;; somewhat random way of limiting min-distance to an appropriate number so that there will be enough
+  ;; home and work patches for all cars
+  set max-distance sqrt ((width ^ 2) + (height ^ 2)) / 2.2
+
+  ;;debugging
+  print (word "max distance as the bird flies: " max-distance)
 
   if min-distance > max-distance [
     user-message (word "min-distance cannot exceed " max-distance ". Resetting to " max-distance ".")
@@ -226,6 +229,7 @@ end
 to setup-trucks
   set speed 0
   set wait-time 0
+  set stop-timer 0
   put-on-empty-road
   ifelse intersection? [
     ifelse random 2 = 0
@@ -300,9 +304,7 @@ to go
   ]
   ask trucks [
 
-    face truck-next-patch ;; truck heads towards its goal
-    set-car-speed
-    fd speed
+    move-truck
     record-data     ;; record data for plotting
 
   ]
@@ -395,11 +397,11 @@ to set-car-speed  ;; turtle procedure
       [ set-speed 1 0 ]
   ]
   ;;decrease speed when moving over worn patches
-  if pcolor = gray and speed > 0.[
-    set speed speed - 0.2
+  if pcolor = gray and speed > 0.1[
+    set speed speed - 0.1
   ]
-  if pcolor = black and speed > 0.4[
-    set speed speed - 0.4
+  if pcolor = black and speed > 0.2[
+    set speed speed - 0.2
   ]
 end
 
@@ -491,28 +493,6 @@ to-report car-next-patch
   report choice
 end
 
-;;truck procedure
-to-report truck-next-patch
-
-  ;;boilerplate code -- could be replaced in the future with new method for determing truck routes
-  if goal = house and (member? patch-here [ neighbors4 ] of house) [
-    set goal work
-  ]
-  ;; if I am going to work and I am next to the patch that is my work
-  ;; my goal gets set to the patch that is my home
-  if goal = work and (member? patch-here [ neighbors4 ] of work) [
-    set goal house
-  ]
-  ;; CHOICES is an agentset of the candidate patches that the car can
-  ;; move to (white patches are roads, green and red patches are lights)
-  ;; had to add gray and black here, perhaps there is a more elegant way to do this
-  let choices neighbors with [ pcolor = white or pcolor = red or pcolor = green or pcolor = gray or pcolor = black]
-  ;; choose the patch closest to the goal, this is the patch the car will move to
-  let choice min-one-of choices [ distance [ goal ] of myself ]
-
-  report choice
-end
-
 to watch-a-car
   stop-watching ;; in case we were previously watching another car
   watch one-of turtles
@@ -590,17 +570,41 @@ end
 ;;procedure to help visualize road wear
 to show-wear
   ask patches [
-    if wear > 100 and pcolor = white [ set pcolor gray ]
-    if wear > 1000 and pcolor = gray [ set pcolor black ]
+    ;; added pcolor = white and pcolor = gray conditions so that red and green lights don't get colored over.
+    if wear > 100 and pcolor = white [ set pcolor gray ]  ;; wear patches to gray when meet certain wear threshold
+    if wear > 1000 and pcolor = gray [ set pcolor black ] ;; wear patches to black when meet certain wear threshold
   ]
 
 end
 
+to move-truck ;; turtle procedure
+  ask trucks [
+    ;; get trucks moving, stop-timer is initialized to 0
+    if stop-timer = 0 [
+      ;; use the pre-existing procedure to set trucks speed as they move
+      set-car-speed
+      ;; move fd at speed
+      fd speed
 
-to stay
-  set stay-timer stay-timer - 1 ;; decrement timer
+      ;; make sure that trucks stay on road patches.
+      if not member? patch-here roads [
+        bk 1
+        set heading one-of [0 90 180 270]
+      ]
+    ]
 
+    set stop-timer random 5
+    ;; make sure trucks dont stop in intersections
+    if not member? patch-here intersections [
+      ask trucks [
+        stop
+        set stop-timer stop-timer - 1
+      ]
+    ]
+  ]
 end
+
+
 
 ; Copyright 2008 Uri Wilensky.
 ; See Info tab for full copyright and license.
@@ -608,8 +612,8 @@ end
 GRAPHICS-WINDOW
 350
 15
-691
-357
+709
+375
 -1
 -1
 9.0
@@ -622,10 +626,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--18
-18
--18
-18
+-19
+19
+-19
+19
 1
 1
 1
@@ -705,7 +709,7 @@ SWITCH
 118
 power?
 power?
-1
+0
 1
 -1000
 
@@ -937,7 +941,7 @@ min-distance
 min-distance
 0
 50
-10.0
+25.0
 1
 1
 NIL
