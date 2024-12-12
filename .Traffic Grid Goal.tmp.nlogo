@@ -36,6 +36,7 @@ turtles-own
 trucks-own
 [
   stop-timer ;;timer for stopping trucks
+  go-timer   ;; timer for trucks moving
 ]
 patches-own
 [
@@ -229,6 +230,7 @@ end
 to setup-trucks
   set speed 0
   set wait-time 0
+  set go-timer random 100
   set stop-timer 0
   put-on-empty-road
   ifelse intersection? [
@@ -295,7 +297,8 @@ to go
   ;; and set the color of the cars to an appropriate color based on their speed
   ask cars [
 
-    face car-next-patch ;; car heads towards its goal
+    while [car-next-patch = last-patch]
+    [ face car-next-patch ] ;; car heads towards its goal
     set-car-speed
     fd speed
     record-data     ;; record data for plotting
@@ -579,27 +582,38 @@ end
 
 to move-truck ;; turtle procedure
   ask trucks [
+    ;; transition to moving state
     ;; get trucks moving, stop-timer is initialized to 0
     if stop-timer = 0 [
       ;; use the pre-existing procedure to set trucks speed as they move
       set-car-speed
+
       ;; move fd at speed
       fd speed
 
-      ;; make sure that trucks stay on road patches.
-      if not member? patch-here roads [
-        bk 1
-        set heading one-of [0 90 180 270]
+      set go-timer go-timer - 1 ;; decrement go timer
+
+      ;; transition to stopping state
+      if go-timer <= 0 [
+        ;; check if on intersection so that trucks don't stop in intersections
+        ifelse member? patch-here intersections
+          ;; reset go-timer to avoid stopping
+          ;; need to find a better way to avoid stopping in intersections so that trucks don't go for too long due to this logic
+          [ set go-timer random 50 ]
+          [ set stop-timer random 50
+            set go-timer 0 ] ;;ensure go-timer resets
       ]
     ]
+      ;; stopped state
+    if stop-timer > 0 [
+       ;; decrement stop-timer
+       set stop-timer stop-timer - 1
 
-    set stop-timer random 5
-    ;; make sure trucks dont stop in intersections
-    if not member? patch-here intersections [
-      ask trucks [
-        stop
-        set stop-timer stop-timer - 1
-      ]
+       ;; resume movement if stop-timer ends
+       if stop-timer <= 0 [
+         set go-timer random 50
+         set stop-timer 0 ;; ensure stop-timer resets
+       ]
     ]
   ]
 end
@@ -709,7 +723,7 @@ SWITCH
 118
 power?
 power?
-0
+1
 1
 -1000
 
@@ -956,7 +970,7 @@ num-trucks
 num-trucks
 0
 100
-6.0
+0.0
 1
 1
 NIL
